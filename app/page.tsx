@@ -1,56 +1,40 @@
-import FlipCalculator from "@/components/FlipCalculator";
-import FreshnessBanner from "@/components/FreshnessBanner";
-import { buildPool, PoolItem, RateMap } from "@/lib/arbitrage";
-import { fetchFlipDataset } from "@/lib/poeNinja";
+import ToolCard from "@/components/ToolCard";
 
-// Matches poe.ninja's own hourly PoE2 refresh cadence - no point revalidating
-// more often, it would just re-fetch the same cached upstream data.
-export const revalidate = 3600;
-
-export default async function Home() {
-  let pool: PoolItem[] = [];
-  let defaultRates: RateMap = {};
-  let league = "";
-  let error: string | null = null;
-
-  try {
-    const dataset = await fetchFlipDataset();
-    pool = buildPool(dataset);
-    defaultRates = { chaos: dataset.core.rates.chaos, exalted: dataset.core.rates.exalted };
-    league = dataset.league;
-  } catch (err) {
-    error = err instanceof Error ? err.message : "Failed to load flip data";
-  }
-
+export default function Home() {
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-10 sm:px-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-          POE2 Currency Flip Finder
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-4 py-14 sm:px-6">
+      <header className="flex flex-col gap-2 text-center sm:text-left">
+        <h1 className="text-3xl font-extrabold text-zinc-900 dark:text-zinc-50 sm:text-4xl">
+          POE2 Toolbox
         </h1>
-        <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Top 20 flips, ranked by Divine profit or profit %, from among the 50 most liquid tradeable
-          items{league ? ` — ${league}` : ""}.
+        <p className="max-w-xl text-sm text-zinc-500 dark:text-zinc-400 sm:text-base">
+          A growing set of tools for Path of Exile 2 trading and economy analysis. Pick a tool
+          below to get started.
         </p>
       </header>
 
-      <FreshnessBanner />
-
-      {error ? (
-        <p className="rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
-          Couldn&apos;t load data from poe.ninja right now: {error}
-        </p>
-      ) : (
-        <FlipCalculator pool={pool} defaultRates={defaultRates} />
-      )}
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <ToolCard
+          href="/currency-flip"
+          icon="💱"
+          title="Currency Flip Finder"
+          description="Finds the most profitable Currency Exchange flips right now, ranked by Divine profit or profit %, with a manual calculator to verify against live prices."
+          status="live"
+        />
+        <ToolCard
+          icon="📈"
+          title="Economy Analyzer"
+          description="Tracks how the league economy evolves over a season — currency value curves, item price trends, and how they compare across leagues."
+          status="coming-soon"
+        />
+      </div>
 
       <footer className="mt-4 text-xs text-zinc-400 dark:text-zinc-600">
         Data via{" "}
         <a href="https://poe.ninja" className="underline" target="_blank" rel="noopener noreferrer">
           poe.ninja
         </a>
-        . Volume is a liquidity signal, not a guaranteed available quantity. Not affiliated with
-        Grinding Gear Games.
+        . Not affiliated with Grinding Gear Games.
       </footer>
     </div>
   );

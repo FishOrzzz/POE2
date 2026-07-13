@@ -1,8 +1,14 @@
 @AGENTS.md
 
-# POE2 Currency Flip Finder
+# POE2 Toolbox
 
-A Next.js dashboard that finds profitable "flips" in Path of Exile 2's Currency Exchange: items that can be bought priced in one currency (e.g. Exalted Orbs) and sold priced in another (e.g. Divine Orbs) for a profit, because those are separate markets that drift apart. Live at **https://poe-2.vercel.app**, repo is `FishOrzzz/POE2` on GitHub, auto-deploys on push to `main` via Vercel (free Hobby tier, no env vars/secrets needed).
+A Next.js multi-tool hub for Path of Exile 2 trading and economy analysis. Live at **https://poe-2.vercel.app**, repo is `FishOrzzz/POE2` on GitHub, auto-deploys on push to `main` via Vercel (free Hobby tier, no env vars/secrets needed).
+
+The homepage (`app/page.tsx`) is a directory of tools, each living under its own route:
+- **`/currency-flip`** — Currency Flip Finder (live). Finds profitable "flips" in the Currency Exchange: items that can be bought priced in one currency (e.g. Exalted Orbs) and sold priced in another (e.g. Divine Orbs) for a profit, because those are separate markets that drift apart.
+- **Economy Analyzer** (planned, not yet built) — will track how the league economy evolves over a season. See "Historical data availability" below for what's actually possible before starting on it.
+
+Adding a new tool = add a route folder under `app/`, add a `ToolCard` entry to `app/page.tsx` pointing at it, flip its `status` from `"coming-soon"` to `"live"` once it's ready. `components/SiteHeader.tsx` (in the root layout) is shared across every tool automatically.
 
 ## Data source: poe.ninja (not the official GGG API)
 
@@ -27,9 +33,20 @@ Explored first and rejected. It returns proper per-pair `market_id`/ratio/stock 
   - `evaluateItem(item, rates, override?)` → the actual buy-cheapest/sell-priciest math for one item; `override` lets manually-entered prices take precedence over the raw API rate for a currency.
   - `computeFlips(pool, rates)` → runs `evaluateItem` over the whole pool, applies the liquidity floor (`MIN_LIQUIDITY = 20` divine-equivalent volume on both legs), returns everything that qualifies (`FlipResult.all`) plus the top-5-by-volume reference list. Deliberately does **not** slice to a top-20 here.
   - `rankTopFlips(all, metric)` → sorts `FlipResult.all` by `"divine"` (raw Divine profit) or `"percent"` (profit %) and slices to the top 20. Separated from `computeFlips` so the rank-metric toggle just re-sorts already-computed data instead of re-running rate conversion.
-- **`app/page.tsx`** — server component, `revalidate = 3600` (ISR, matches poe.ninja's own hourly cadence). Fetches the dataset, builds the pool, and hands it to `FlipCalculator` as plain serializable props. No secrets/env vars involved anywhere in this app.
+- **`app/currency-flip/page.tsx`** — server component, `revalidate = 3600` (ISR, matches poe.ninja's own hourly cadence). Fetches the dataset, builds the pool, and hands it to `FlipCalculator` as plain serializable props. No secrets/env vars involved anywhere in this app.
 - **`components/FlipCalculator.tsx`** — the client-side state owner: ratio override, per-item overrides, expanded rows, and the rank metric. Recomputes via `computeFlips`/`rankTopFlips` client-side on change so the initial server-rendered output and subsequent client recomputation always agree (no hydration mismatch).
-- **`components/FlipTable.tsx`, `RatioOverridePanel.tsx`, `RankMetricToggle.tsx`, `VolumeReference.tsx`, `FreshnessBanner.tsx`** — presentational pieces, mostly `"use client"` since they're interactive.
+- **`components/FlipTable.tsx`, `RatioOverridePanel.tsx`, `RankMetricToggle.tsx`, `VolumeReference.tsx`, `FreshnessBanner.tsx`** — presentational pieces, mostly `"use client"` since they're interactive. All specific to the currency-flip tool.
+- **`app/page.tsx`, `components/SiteHeader.tsx`, `components/ToolCard.tsx`** — the hub homepage and shared chrome, not specific to any one tool.
+
+## Historical data availability (relevant for the planned Economy Analyzer)
+
+Tested directly against poe.ninja's API before building anything, since this determines what that tool can actually do:
+
+- **Current league: full daily history since the league's actual launch.** The `details` endpoint's `pairs[].history` array goes back to day one of whichever league is currently active (confirmed: two different items both showed daily data starting the same date, ~45 days deep for a ~45-day-old league) — not a rolling window that happens to look full.
+- **There is a hard retention cap around 365 days.** Confirmed by checking **Standard** (the permanent league, active far longer than a year): its history stops at exactly 364 days back. Irrelevant for a single season (PoE2 leagues run ~3-4 months, well under the cap) but means you can't look back more than a year even on a currently-active league.
+- **Once a league ends, its `details` history is gone entirely (404).** Verified against "Fate of the Vaal," a concluded PoE2 league still listed in the UI's league dropdown but absent from the `/leagues` API response. The `overview` endpoint still returns *something* for an ended league (a frozen snapshot with just a 7-point sparkline), but nowhere near enough for real trend analysis.
+- **No PoE2 equivalent of poe.ninja's "Data dumps" exists yet.** PoE1 has one (`poe.ninja/poe1/data`) — full daily CSV exports per past league, going back to 2017, openly licensed, explicitly built for external research tooling. `poe.ninja/poe2/data` 404s. Worth re-checking periodically; if it ever appears, it'd be a much better foundation than self-collected data.
+- **Conclusion:** cross-season trend analysis ("chaos gets more valuable as the league goes on, every season") isn't buildable from poe.ninja today for past seasons — only the currently-running one. The Economy Analyzer will need to start snapshotting the current league's data itself (daily cron, own storage) and build up its own season-over-season dataset going forward; there's no way to backfill history for leagues that already ended.
 
 ## Key design decisions (the "why")
 
