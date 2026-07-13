@@ -9,23 +9,30 @@ interface Status {
   dotClass: string;
 }
 
-function getStatus(minutes: number): Status {
-  const safeMinutes = Math.max(minutes, 0);
+// poe.ninja exposes no "last synced from GGG" timestamp anywhere (checked both
+// the API responses and their own site). Their docs only say PoE2 data
+// refreshes "roughly hourly," so the best honest estimate of data age is time
+// elapsed since the top of the current UTC hour - not time since we fetched it,
+// which would understate staleness if our fetch happened late in the hour.
+function minutesIntoCurrentHour(): number {
+  return new Date().getUTCMinutes();
+}
 
-  if (safeMinutes < 20) {
+function getStatus(minutes: number): Status {
+  if (minutes < 20) {
     return {
       label: "Fresh",
-      message: `Updated ${safeMinutes}m ago`,
+      message: `~${minutes}m into poe.ninja's hourly refresh window`,
       wrapperClass:
         "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
       dotClass: "bg-emerald-500",
     };
   }
 
-  if (safeMinutes < 45) {
+  if (minutes < 45) {
     return {
       label: "Aging",
-      message: `Updated ${safeMinutes}m ago — treat with caution`,
+      message: `~${minutes}m into poe.ninja's hourly refresh window — treat with caution`,
       wrapperClass:
         "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300",
       dotClass: "bg-amber-500",
@@ -34,24 +41,20 @@ function getStatus(minutes: number): Status {
 
   return {
     label: "Stale",
-    message: `Updated ${safeMinutes}m ago — likely outdated, verify in-game before flipping`,
+    message: `~${minutes}m into poe.ninja's hourly refresh window — likely outdated, verify in-game before flipping`,
     wrapperClass:
       "border-red-300 bg-red-50 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-300",
     dotClass: "bg-red-500",
   };
 }
 
-function minutesSince(iso: string): number {
-  return Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-}
-
-export default function FreshnessBanner({ generatedAt }: { generatedAt: string }) {
-  const [minutes, setMinutes] = useState(() => minutesSince(generatedAt));
+export default function FreshnessBanner() {
+  const [minutes, setMinutes] = useState(() => minutesIntoCurrentHour());
 
   useEffect(() => {
-    const interval = setInterval(() => setMinutes(minutesSince(generatedAt)), 15000);
+    const interval = setInterval(() => setMinutes(minutesIntoCurrentHour()), 15000);
     return () => clearInterval(interval);
-  }, [generatedAt]);
+  }, []);
 
   const status = getStatus(minutes);
 

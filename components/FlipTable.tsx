@@ -59,7 +59,10 @@ function FlipRow({ flip, rank, total }: { flip: FlipOpportunity; rank: number; t
           +{formatRate(flip.divineProfitPerFlip)} div / flip
         </span>
         <span className="text-xs text-zinc-500 dark:text-zinc-400">
-          +{flip.profitPercent.toFixed(1)}% · ~{formatRate(flip.volume)} div volume
+          +{flip.profitPercent.toFixed(1)}% · ~{formatRate(flip.volume)} div/hr
+        </span>
+        <span className="text-xs text-zinc-400 dark:text-zinc-500">
+          Liquidity rank #{flip.volumeRank} of {flip.volumePoolSize}
         </span>
       </div>
     </li>

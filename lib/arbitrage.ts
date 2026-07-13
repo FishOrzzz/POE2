@@ -6,6 +6,7 @@ import { CurrencyExchangePair } from "./poeNinjaTypes";
 const MIN_LIQUIDITY = 20;
 
 const TOP_N = 20;
+const TOP_VOLUME_REFERENCE_N = 5;
 
 export interface FlipOpportunity {
   id: string;
@@ -21,6 +22,14 @@ export interface FlipOpportunity {
   divineProfitPerFlip: number;
   profitPercent: number;
   volume: number;
+  volumeRank: number;
+  volumePoolSize: number;
+}
+
+export interface FlipResult {
+  topFlips: FlipOpportunity[];
+  topByVolume: FlipOpportunity[];
+  poolSize: number;
 }
 
 // Converts a currency-pair's quoted rate (price of 1 item in that currency)
@@ -33,8 +42,10 @@ function toDivineEquivalent(pair: CurrencyExchangePair, rates: Record<string, nu
   return pair.rate / perDivine;
 }
 
-export function computeTopFlips(dataset: FlipDataset): FlipOpportunity[] {
-  const opportunities: FlipOpportunity[] = [];
+type RawOpportunity = Omit<FlipOpportunity, "volumeRank" | "volumePoolSize">;
+
+export function computeTopFlips(dataset: FlipDataset): FlipResult {
+  const opportunities: RawOpportunity[] = [];
 
   for (const { candidate, details } of dataset.details) {
     if (details.pairs.length < 2) continue;
@@ -77,5 +88,21 @@ export function computeTopFlips(dataset: FlipDataset): FlipOpportunity[] {
     });
   }
 
-  return opportunities.sort((a, b) => b.divineProfitPerFlip - a.divineProfitPerFlip).slice(0, TOP_N);
+  // Rank by volume (liquidity) across the whole discovered pool first, so every
+  // flip - not just the ones shown - carries an honest "how liquid is this
+  // relative to everything else we found" position.
+  const rankedByVolume = [...opportunities].sort((a, b) => b.volume - a.volume);
+  const volumeRankById = new Map(rankedByVolume.map((o, i) => [o.id, i + 1]));
+  const poolSize = opportunities.length;
+
+  const withRank: FlipOpportunity[] = opportunities.map((o) => ({
+    ...o,
+    volumeRank: volumeRankById.get(o.id) ?? poolSize,
+    volumePoolSize: poolSize,
+  }));
+
+  const topFlips = [...withRank].sort((a, b) => b.divineProfitPerFlip - a.divineProfitPerFlip).slice(0, TOP_N);
+  const topByVolume = [...withRank].sort((a, b) => b.volume - a.volume).slice(0, TOP_VOLUME_REFERENCE_N);
+
+  return { topFlips, topByVolume, poolSize };
 }
