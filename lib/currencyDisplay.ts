@@ -35,6 +35,12 @@ export function getCurrencyStyle(id: string): CurrencyStyle {
   return CURRENCY_STYLES[id] ?? FALLBACK_STYLE;
 }
 
+// Item icons returned by poe.ninja's API are relative paths served from their
+// CDN host, not poe.ninja itself.
+export function getItemIconUrl(imagePath: string): string {
+  return `https://web.poecdn.com${imagePath}`;
+}
+
 export function formatRate(rate: number): string {
   if (rate >= 1000) return rate.toFixed(0);
   if (rate >= 100) return rate.toFixed(1);

@@ -1,5 +1,5 @@
 import { FlipOpportunity } from "@/lib/arbitrage";
-import { formatRate, getCurrencyStyle, getRankAccentColor } from "@/lib/currencyDisplay";
+import { formatRate, getCurrencyStyle, getItemIconUrl, getRankAccentColor } from "@/lib/currencyDisplay";
 
 function CurrencyBadge({ currencyId, rate }: { currencyId: string; rate: number }) {
   const style = getCurrencyStyle(currencyId);
@@ -30,7 +30,7 @@ function FlipRow({ flip, rank, total }: { flip: FlipOpportunity; rank: number; t
         <div className="flex items-center gap-2 min-w-0">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={`https://poe.ninja${flip.image}`}
+            src={getItemIconUrl(flip.image)}
             alt=""
             width={28}
             height={28}
@@ -51,15 +51,15 @@ function FlipRow({ flip, rank, total }: { flip: FlipOpportunity; rank: number; t
         <CurrencyBadge currencyId={flip.sellCurrency} rate={flip.sellRate} />
       </div>
 
-      <div className="flex items-center justify-between gap-4 sm:w-40 sm:shrink-0 sm:flex-col sm:items-end sm:gap-1">
+      <div className="flex items-center justify-between gap-4 sm:w-44 sm:shrink-0 sm:flex-col sm:items-end sm:gap-1">
         <span
-          className="rounded-full px-3 py-1 text-sm font-bold text-white"
+          className="rounded-full px-3 py-1.5 text-base font-bold text-white"
           style={{ backgroundColor: accentColor }}
         >
-          +{flip.profitPercent.toFixed(1)}%
+          +{formatRate(flip.divineProfitPerFlip)} div / flip
         </span>
         <span className="text-xs text-zinc-500 dark:text-zinc-400">
-          ~{formatRate(flip.volume)} div volume
+          +{flip.profitPercent.toFixed(1)}% · ~{formatRate(flip.volume)} div volume
         </span>
       </div>
     </li>

@@ -17,11 +17,11 @@ const USER_AGENT = "POE2-Flip-Finder/1.0 (contact: github.com/FishOrzzz/POE2)";
 // liquidity floor - an item that won't clear that floor isn't worth a request.
 const MIN_OVERVIEW_VOLUME = 20;
 
-// Hard cap on how many items get a details request per run, regardless of how
-// many clear the volume floor. We only need the top 20 flips, so there's no
-// value in checking hundreds of items - this bounds the request burst poe.ninja
-// sees per hourly refresh.
-const MAX_DETAILS_CANDIDATES = 80;
+// The eligible "flippable" universe is the top 50 items by trade volume across
+// all categories - anything outside that is illiquid enough that a quoted gap
+// likely isn't realistically tradeable. This also bounds the details-request
+// burst poe.ninja sees per hourly refresh.
+const MAX_DETAILS_CANDIDATES = 50;
 
 // Cap how many details requests run at once, per poe.ninja's "be reasonable
 // with concurrency" guidance, plus a small stagger between dispatches so the

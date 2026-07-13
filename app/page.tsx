@@ -28,8 +28,8 @@ export default async function Home() {
           POE2 Currency Flip Finder
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400">
-          Top 20 items right now with the biggest gap between their cheapest buy-currency and their
-          best sell-currency{league ? ` — ${league}` : ""}.
+          Top 20 flips by raw Divine Orb profit, from among the 50 most liquid tradeable
+          items{league ? ` — ${league}` : ""}.
         </p>
       </header>
 

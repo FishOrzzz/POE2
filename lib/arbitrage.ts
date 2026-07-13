@@ -18,6 +18,7 @@ export interface FlipOpportunity {
   sellCurrency: string;
   sellRate: number;
   sellDivineEquivalent: number;
+  divineProfitPerFlip: number;
   profitPercent: number;
   volume: number;
 }
@@ -55,8 +56,9 @@ export function computeTopFlips(dataset: FlipDataset): FlipOpportunity[] {
     const volume = Math.min(cheapest.pair.volumePrimaryValue, priciest.pair.volumePrimaryValue);
     if (volume < MIN_LIQUIDITY) continue;
 
-    const profitPercent = ((priciest.divineEq - cheapest.divineEq) / cheapest.divineEq) * 100;
-    if (!Number.isFinite(profitPercent) || profitPercent <= 0) continue;
+    const divineProfitPerFlip = priciest.divineEq - cheapest.divineEq;
+    const profitPercent = (divineProfitPerFlip / cheapest.divineEq) * 100;
+    if (!Number.isFinite(divineProfitPerFlip) || divineProfitPerFlip <= 0) continue;
 
     opportunities.push({
       id: candidate.id,
@@ -69,10 +71,11 @@ export function computeTopFlips(dataset: FlipDataset): FlipOpportunity[] {
       sellCurrency: priciest.pair.id,
       sellRate: priciest.pair.rate,
       sellDivineEquivalent: priciest.divineEq,
+      divineProfitPerFlip,
       profitPercent,
       volume,
     });
   }
 
-  return opportunities.sort((a, b) => b.profitPercent - a.profitPercent).slice(0, TOP_N);
+  return opportunities.sort((a, b) => b.divineProfitPerFlip - a.divineProfitPerFlip).slice(0, TOP_N);
 }
