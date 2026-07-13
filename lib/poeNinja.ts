@@ -39,8 +39,14 @@ async function poeNinjaFetch<T>(path: string, params: Record<string, string>): P
     url.searchParams.set(key, value);
   }
 
+  // Pin the cache lifetime to the fetch call itself (not just the route
+  // segment's `revalidate` export) so it stays cached for an hour even if a
+  // page reading searchParams (e.g. the economy analyzer's sort toggle) ends
+  // up dynamically rendered - otherwise dynamic rendering can bypass Next's
+  // route-level caching and hit poe.ninja on every visitor.
   const res = await fetch(url.toString(), {
     headers: { "User-Agent": USER_AGENT },
+    next: { revalidate: 3600 },
   });
 
   if (!res.ok) {
@@ -106,16 +112,17 @@ async function runWithConcurrency<T, R>(
   return results;
 }
 
-export interface FlipDataset {
+export interface EconomyDataset {
   league: string;
   core: CurrencyExchangeCore;
   details: { candidate: FlipCandidate; details: CurrencyExchangeDetailsResponse }[];
 }
 
 // Fetches every relevant PoE2 exchange category, narrows to items worth checking,
-// then pulls per-item currency-pair data for each. This is the single entry point
-// the arbitrage layer and the page's ISR fetch should call.
-export async function fetchFlipDataset(): Promise<FlipDataset> {
+// then pulls per-item currency-pair data (rate, volume, and daily history) for
+// each. Shared entry point for every tool - the flip finder and the economy
+// analyzer both build their own pool from this same dataset.
+export async function fetchEconomyDataset(): Promise<EconomyDataset> {
   const league = await getCurrentLeague();
 
   const overviews = await Promise.all(
@@ -147,6 +154,7 @@ export async function fetchFlipDataset(): Promise<FlipDataset> {
       if (!item) continue;
       candidates.push({
         id: line.id,
+        detailsId: item.detailsId,
         name: item.name,
         image: item.image,
         category: item.category,
@@ -161,7 +169,7 @@ export async function fetchFlipDataset(): Promise<FlipDataset> {
     .slice(0, MAX_DETAILS_CANDIDATES);
 
   const detailsResults = await runWithConcurrency(topCandidates, DETAILS_CONCURRENCY, async (candidate) => {
-    const details = await getItemDetails(league, candidate.type, candidate.id);
+    const details = await getItemDetails(league, candidate.type, candidate.detailsId);
     return { candidate, details };
   });
 

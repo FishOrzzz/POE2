@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import FlipCalculator from "@/components/FlipCalculator";
 import FreshnessBanner from "@/components/FreshnessBanner";
 import { buildPool, PoolItem, RateMap } from "@/lib/arbitrage";
-import { fetchFlipDataset } from "@/lib/poeNinja";
+import { fetchEconomyDataset } from "@/lib/poeNinja";
 
 export const metadata: Metadata = {
   title: "Currency Flip Finder — POE2 Toolbox",
@@ -20,7 +20,7 @@ export default async function CurrencyFlipPage() {
   let error: string | null = null;
 
   try {
-    const dataset = await fetchFlipDataset();
+    const dataset = await fetchEconomyDataset();
     pool = buildPool(dataset);
     defaultRates = { chaos: dataset.core.rates.chaos, exalted: dataset.core.rates.exalted };
     league = dataset.league;

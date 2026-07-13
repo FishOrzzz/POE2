@@ -78,6 +78,11 @@ export interface CurrencyExchangeDetailsResponse {
 // A candidate item collected from an overview pass, ready to have its details fetched.
 export interface FlipCandidate {
   id: string;
+  // The details endpoint requires this specific slug, which is NOT always the
+  // same as `id` - e.g. Mirror of Kalandra's overview `id` is "mirror" but
+  // its `detailsId` is "mirror-of-kalandra"; querying /details with "mirror"
+  // 404s. Confirmed directly against the live API.
+  detailsId: string;
   name: string;
   image: string;
   category: string;

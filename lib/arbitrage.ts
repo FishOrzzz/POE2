@@ -1,4 +1,4 @@
-import { FlipDataset } from "./poeNinja";
+import { EconomyDataset } from "./poeNinja";
 import { BenchmarkCurrencyId } from "./poeNinjaTypes";
 
 // Minimum volume (in divine-equivalent) on BOTH sides of a flip before it's
@@ -18,10 +18,17 @@ export type RateMap = Partial<Record<BenchmarkCurrencyId, number>>;
 // A manual per-item override: currencyId -> user-entered rate for that item.
 export type ItemOverride = Partial<Record<string, number>>;
 
+export interface PoolItemPairHistoryPoint {
+  timestamp: string;
+  rate: number;
+  volume: number;
+}
+
 export interface PoolItemPair {
   currencyId: string;
   rate: number;
   volume: number;
+  history: PoolItemPairHistoryPoint[];
 }
 
 // Raw, unranked candidate data - shipped to the client so ratio overrides can
@@ -60,16 +67,28 @@ export interface FlipResult {
   poolSize: number;
 }
 
-export function buildPool(dataset: FlipDataset): PoolItem[] {
+export function buildPool(dataset: EconomyDataset): PoolItem[] {
   const pool: PoolItem[] = [];
   for (const { candidate, details } of dataset.details) {
-    if (details.pairs.length < 2) continue;
+    // A single-pair item has no arbitrage spread (evaluateItem needs 2+ to
+    // produce a result), but it still has a valid price *trend* - keep it so
+    // trend-focused consumers aren't starved of candidates.
+    if (details.pairs.length < 1) continue;
     pool.push({
       id: candidate.id,
       name: candidate.name,
       image: candidate.image,
       category: candidate.category,
-      pairs: details.pairs.map((p) => ({ currencyId: p.id, rate: p.rate, volume: p.volumePrimaryValue })),
+      pairs: details.pairs.map((p) => ({
+        currencyId: p.id,
+        rate: p.rate,
+        volume: p.volumePrimaryValue,
+        history: p.history.map((h) => ({
+          timestamp: h.timestamp,
+          rate: h.rate,
+          volume: h.volumePrimaryValue,
+        })),
+      })),
     });
   }
   return pool;

@@ -22,10 +22,11 @@ export default function Home() {
           status="live"
         />
         <ToolCard
+          href="/economy"
           icon="📈"
           title="Economy Analyzer"
-          description="Tracks how the league economy evolves over a season — currency value curves, item price trends, and how they compare across leagues."
-          status="coming-soon"
+          description="Tracks how the current season's economy is trending — Chaos:Divine ratio, Mirror and Hinekora's Lock as anchor prices, and a gainers/losers scanner across the market."
+          status="live"
         />
       </div>
 
