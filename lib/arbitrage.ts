@@ -52,8 +52,10 @@ export interface FlipOpportunity {
   volumePoolSize: number;
 }
 
+export type RankMetric = "divine" | "percent";
+
 export interface FlipResult {
-  topFlips: FlipOpportunity[];
+  all: FlipOpportunity[];
   topByVolume: FlipOpportunity[];
   poolSize: number;
 }
@@ -129,10 +131,13 @@ export function evaluateItem(item: PoolItem, rates: RateMap, override?: ItemOver
   };
 }
 
-// Builds the ranked top-20 (by divine profit) and top-5-by-volume reference
-// list from the whole pool at a given rate set. This is what re-runs whenever
-// the global ratio override changes - pure and framework-agnostic, so it runs
-// identically on the server (initial paint) and in the browser (recompute).
+// Builds the whole valid, liquidity-filtered pool (ranked by volume) and the
+// top-5-by-volume reference list at a given rate set. This is what re-runs
+// whenever the global ratio override changes - pure and framework-agnostic,
+// so it runs identically on the server (initial paint) and in the browser
+// (recompute). Deliberately does NOT slice to a top-20-by-profit list here -
+// that depends on which ranking metric is currently selected, which is a
+// display concern handled by rankTopFlips.
 export function computeFlips(pool: PoolItem[], rates: RateMap): FlipResult {
   const opportunities: RawOpportunity[] = [];
 
@@ -145,19 +150,26 @@ export function computeFlips(pool: PoolItem[], rates: RateMap): FlipResult {
 
   // Rank by volume (liquidity) across the whole discovered pool first, so every
   // flip - not just the ones shown - carries an honest "how liquid is this
-  // relative to everything else we found" position.
+  // relative to everything else we found" position. This ranking is stable
+  // regardless of which profit metric is used to pick the top 20.
   const rankedByVolume = [...opportunities].sort((a, b) => b.volume - a.volume);
   const volumeRankById = new Map(rankedByVolume.map((o, i) => [o.id, i + 1]));
   const poolSize = opportunities.length;
 
-  const withRank: FlipOpportunity[] = opportunities.map((o) => ({
+  const all: FlipOpportunity[] = opportunities.map((o) => ({
     ...o,
     volumeRank: volumeRankById.get(o.id) ?? poolSize,
     volumePoolSize: poolSize,
   }));
 
-  const topFlips = [...withRank].sort((a, b) => b.divineProfitPerFlip - a.divineProfitPerFlip).slice(0, TOP_N);
-  const topByVolume = [...withRank].sort((a, b) => b.volume - a.volume).slice(0, TOP_VOLUME_REFERENCE_N);
+  const topByVolume = [...all].sort((a, b) => b.volume - a.volume).slice(0, TOP_VOLUME_REFERENCE_N);
 
-  return { topFlips, topByVolume, poolSize };
+  return { all, topByVolume, poolSize };
+}
+
+// Picks the top 20 from the full pool by whichever metric the user has
+// selected - "divine" (raw Divine profit per flip) or "percent" (profit %).
+export function rankTopFlips(all: FlipOpportunity[], metric: RankMetric): FlipOpportunity[] {
+  const key: keyof FlipOpportunity = metric === "divine" ? "divineProfitPerFlip" : "profitPercent";
+  return [...all].sort((a, b) => (b[key] as number) - (a[key] as number)).slice(0, TOP_N);
 }

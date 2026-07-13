@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import FlipTable, { DisplayRow } from "@/components/FlipTable";
+import RankMetricToggle from "@/components/RankMetricToggle";
 import RatioOverridePanel from "@/components/RatioOverridePanel";
 import VolumeReference from "@/components/VolumeReference";
-import { computeFlips, evaluateItem, ItemOverride, PoolItem, RateMap } from "@/lib/arbitrage";
+import { computeFlips, evaluateItem, ItemOverride, PoolItem, RankMetric, rankTopFlips, RateMap } from "@/lib/arbitrage";
 
 interface Props {
   pool: PoolItem[];
@@ -22,6 +23,7 @@ export default function FlipCalculator({ pool, defaultRates }: Props) {
   const [ratioOverride, setRatioOverride] = useState<RateMap>({});
   const [itemOverrides, setItemOverrides] = useState<Record<string, ItemOverride>>({});
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [rankMetric, setRankMetric] = useState<RankMetric>("divine");
 
   const poolById = useMemo(() => new Map(pool.map((p) => [p.id, p])), [pool]);
 
@@ -34,9 +36,14 @@ export default function FlipCalculator({ pool, defaultRates }: Props) {
   // and re-rank the whole pool. Per-item overrides never touch this.
   const baseResult = useMemo(() => computeFlips(pool, effectiveRates), [pool, effectiveRates]);
 
+  // Which 20 make the cut (and their order) depends on the selected metric -
+  // computed separately from computeFlips so switching the toggle doesn't
+  // require re-running the rate conversion math, just re-sorting.
+  const topFlips = useMemo(() => rankTopFlips(baseResult.all, rankMetric), [baseResult.all, rankMetric]);
+
   const rows: DisplayRow[] = useMemo(
     () =>
-      baseResult.topFlips.map((flip) => {
+      topFlips.map((flip) => {
         const override = itemOverrides[flip.id];
         const hasOverride = !!override && Object.keys(override).length > 0;
 
@@ -57,7 +64,7 @@ export default function FlipCalculator({ pool, defaultRates }: Props) {
           invalidOverride: false,
         };
       }),
-    [baseResult.topFlips, itemOverrides, poolById, effectiveRates],
+    [topFlips, itemOverrides, poolById, effectiveRates],
   );
 
   const hasAnyOverride =
@@ -117,6 +124,7 @@ export default function FlipCalculator({ pool, defaultRates }: Props) {
 
   return (
     <>
+      <RankMetricToggle value={rankMetric} onChange={setRankMetric} />
       <RatioOverridePanel
         ratioOverride={ratioOverride}
         defaultRates={defaultRates}
@@ -128,6 +136,7 @@ export default function FlipCalculator({ pool, defaultRates }: Props) {
       <VolumeReference items={baseResult.topByVolume} />
       <FlipTable
         rows={rows}
+        rankMetric={rankMetric}
         poolById={poolById}
         itemOverrides={itemOverrides}
         expandedIds={expandedIds}

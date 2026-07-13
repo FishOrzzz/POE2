@@ -1,6 +1,6 @@
 "use client";
 
-import { FlipOpportunity, ItemOverride, PoolItem } from "@/lib/arbitrage";
+import { FlipOpportunity, ItemOverride, PoolItem, RankMetric } from "@/lib/arbitrage";
 import { formatRate, getCurrencyStyle, getItemIconUrl, getRankAccentColor } from "@/lib/currencyDisplay";
 
 const EDITABLE_CURRENCIES = ["divine", "exalted", "chaos"] as const;
@@ -13,6 +13,7 @@ export interface DisplayRow {
 
 interface FlipTableProps {
   rows: DisplayRow[];
+  rankMetric: RankMetric;
   poolById: Map<string, PoolItem>;
   itemOverrides: Record<string, ItemOverride>;
   expandedIds: Set<string>;
@@ -92,6 +93,7 @@ function FlipRow({
   row,
   rank,
   total,
+  rankMetric,
   poolItem,
   override,
   expanded,
@@ -102,6 +104,7 @@ function FlipRow({
   row: DisplayRow;
   rank: number;
   total: number;
+  rankMetric: RankMetric;
   poolItem: PoolItem | undefined;
   override: ItemOverride | undefined;
   expanded: boolean;
@@ -172,10 +175,14 @@ function FlipRow({
                 className="rounded-full px-3 py-1.5 text-base font-bold text-white"
                 style={{ backgroundColor: accentColor }}
               >
-                +{formatRate(flip.divineProfitPerFlip)} div / flip
+                {rankMetric === "divine"
+                  ? `+${formatRate(flip.divineProfitPerFlip)} div / flip`
+                  : `+${flip.profitPercent.toFixed(1)}% / flip`}
               </span>
               <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                +{flip.profitPercent.toFixed(1)}% · ~{formatRate(flip.volume)} div/hr
+                {rankMetric === "divine"
+                  ? `+${flip.profitPercent.toFixed(1)}% · ~${formatRate(flip.volume)} div/hr`
+                  : `+${formatRate(flip.divineProfitPerFlip)} div/flip · ~${formatRate(flip.volume)} div/hr`}
               </span>
               <span className="text-xs text-zinc-400 dark:text-zinc-500">
                 Liquidity rank #{flip.volumeRank} of {flip.volumePoolSize}
@@ -200,6 +207,7 @@ function FlipRow({
 
 export default function FlipTable({
   rows,
+  rankMetric,
   poolById,
   itemOverrides,
   expandedIds,
@@ -223,6 +231,7 @@ export default function FlipTable({
           row={row}
           rank={i + 1}
           total={rows.length}
+          rankMetric={rankMetric}
           poolItem={poolById.get(row.flip.id)}
           override={itemOverrides[row.flip.id]}
           expanded={expandedIds.has(row.flip.id)}
