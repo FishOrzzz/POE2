@@ -1,7 +1,6 @@
-import FlipTable from "@/components/FlipTable";
+import FlipCalculator from "@/components/FlipCalculator";
 import FreshnessBanner from "@/components/FreshnessBanner";
-import VolumeReference from "@/components/VolumeReference";
-import { computeTopFlips, FlipResult } from "@/lib/arbitrage";
+import { buildPool, PoolItem, RateMap } from "@/lib/arbitrage";
 import { fetchFlipDataset } from "@/lib/poeNinja";
 
 // Matches poe.ninja's own hourly PoE2 refresh cadence - no point revalidating
@@ -9,13 +8,15 @@ import { fetchFlipDataset } from "@/lib/poeNinja";
 export const revalidate = 3600;
 
 export default async function Home() {
-  let result: FlipResult = { topFlips: [], topByVolume: [], poolSize: 0 };
+  let pool: PoolItem[] = [];
+  let defaultRates: RateMap = {};
   let league = "";
   let error: string | null = null;
 
   try {
     const dataset = await fetchFlipDataset();
-    result = computeTopFlips(dataset);
+    pool = buildPool(dataset);
+    defaultRates = { chaos: dataset.core.rates.chaos, exalted: dataset.core.rates.exalted };
     league = dataset.league;
   } catch (err) {
     error = err instanceof Error ? err.message : "Failed to load flip data";
@@ -40,10 +41,7 @@ export default async function Home() {
           Couldn&apos;t load data from poe.ninja right now: {error}
         </p>
       ) : (
-        <>
-          <VolumeReference items={result.topByVolume} />
-          <FlipTable flips={result.topFlips} />
-        </>
+        <FlipCalculator pool={pool} defaultRates={defaultRates} />
       )}
 
       <footer className="mt-4 text-xs text-zinc-400 dark:text-zinc-600">

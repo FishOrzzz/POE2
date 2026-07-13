@@ -42,6 +42,7 @@ export function getItemIconUrl(imagePath: string): string {
 }
 
 export function formatRate(rate: number): string {
+  if (!Number.isFinite(rate)) return "—";
   if (rate >= 1000) return rate.toFixed(0);
   if (rate >= 100) return rate.toFixed(1);
   if (rate >= 1) return rate.toFixed(2);

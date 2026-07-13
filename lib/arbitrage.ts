@@ -1,12 +1,38 @@
 import { FlipDataset } from "./poeNinja";
-import { CurrencyExchangePair } from "./poeNinjaTypes";
+import { BenchmarkCurrencyId } from "./poeNinjaTypes";
 
 // Minimum volume (in divine-equivalent) on BOTH sides of a flip before it's
-// considered real signal rather than illiquid noise.
+// considered real signal rather than illiquid noise. Only applied when
+// building the ranked pool (computeFlips) - NOT inside evaluateItem, so a
+// manually-overridden single item always shows its real computed number
+// rather than silently disappearing for failing a floor it never asked to be
+// judged against.
 const MIN_LIQUIDITY = 20;
 
 const TOP_N = 20;
 const TOP_VOLUME_REFERENCE_N = 5;
+
+// Currency-per-1-divine benchmark rates. Divine itself is implicit (always 1).
+export type RateMap = Partial<Record<BenchmarkCurrencyId, number>>;
+
+// A manual per-item override: currencyId -> user-entered rate for that item.
+export type ItemOverride = Partial<Record<string, number>>;
+
+export interface PoolItemPair {
+  currencyId: string;
+  rate: number;
+  volume: number;
+}
+
+// Raw, unranked candidate data - shipped to the client so ratio overrides can
+// recompute the whole pool, not just relabel an already-fixed top 20.
+export interface PoolItem {
+  id: string;
+  name: string;
+  image: string;
+  category: string;
+  pairs: PoolItemPair[];
+}
 
 export interface FlipOpportunity {
   id: string;
@@ -32,60 +58,89 @@ export interface FlipResult {
   poolSize: number;
 }
 
-// Converts a currency-pair's quoted rate (price of 1 item in that currency)
-// into a divine-equivalent value using the benchmark cross-rates from the
-// overview endpoint's `core.rates` (currency-per-1-divine).
-function toDivineEquivalent(pair: CurrencyExchangePair, rates: Record<string, number>): number | null {
-  if (pair.id === "divine") return pair.rate;
-  const perDivine = rates[pair.id];
-  if (!perDivine || perDivine <= 0) return null;
-  return pair.rate / perDivine;
-}
-
-type RawOpportunity = Omit<FlipOpportunity, "volumeRank" | "volumePoolSize">;
-
-export function computeTopFlips(dataset: FlipDataset): FlipResult {
-  const opportunities: RawOpportunity[] = [];
-
+export function buildPool(dataset: FlipDataset): PoolItem[] {
+  const pool: PoolItem[] = [];
   for (const { candidate, details } of dataset.details) {
     if (details.pairs.length < 2) continue;
-
-    const withDivineEq = details.pairs
-      .map((pair) => ({
-        pair,
-        divineEq: toDivineEquivalent(pair, dataset.core.rates),
-      }))
-      .filter((p): p is { pair: CurrencyExchangePair; divineEq: number } => p.divineEq !== null && p.divineEq > 0);
-
-    if (withDivineEq.length < 2) continue;
-
-    const cheapest = withDivineEq.reduce((a, b) => (b.divineEq < a.divineEq ? b : a));
-    const priciest = withDivineEq.reduce((a, b) => (b.divineEq > a.divineEq ? b : a));
-
-    if (cheapest.pair.id === priciest.pair.id) continue;
-
-    const volume = Math.min(cheapest.pair.volumePrimaryValue, priciest.pair.volumePrimaryValue);
-    if (volume < MIN_LIQUIDITY) continue;
-
-    const divineProfitPerFlip = priciest.divineEq - cheapest.divineEq;
-    const profitPercent = (divineProfitPerFlip / cheapest.divineEq) * 100;
-    if (!Number.isFinite(divineProfitPerFlip) || divineProfitPerFlip <= 0) continue;
-
-    opportunities.push({
+    pool.push({
       id: candidate.id,
       name: candidate.name,
       image: candidate.image,
       category: candidate.category,
-      buyCurrency: cheapest.pair.id,
-      buyRate: cheapest.pair.rate,
-      buyDivineEquivalent: cheapest.divineEq,
-      sellCurrency: priciest.pair.id,
-      sellRate: priciest.pair.rate,
-      sellDivineEquivalent: priciest.divineEq,
-      divineProfitPerFlip,
-      profitPercent,
-      volume,
+      pairs: details.pairs.map((p) => ({ currencyId: p.id, rate: p.rate, volume: p.volumePrimaryValue })),
     });
+  }
+  return pool;
+}
+
+function toDivineEquivalent(currencyId: string, rate: number, rates: RateMap): number | null {
+  if (currencyId === "divine") return rate;
+  const perDivine = rates[currencyId as BenchmarkCurrencyId];
+  if (!perDivine || perDivine <= 0) return null;
+  return rate / perDivine;
+}
+
+type RawOpportunity = Omit<FlipOpportunity, "volumeRank" | "volumePoolSize">;
+
+// Pure per-item calculation: given an item's raw pairs, the current benchmark
+// rates, and an optional manual override, works out the best buy/sell route
+// and its profit. Reused both when building the ranked pool (no override) and
+// for a single manually-edited row in the browser (with override) - same math
+// either way, so results are always consistent.
+export function evaluateItem(item: PoolItem, rates: RateMap, override?: ItemOverride): RawOpportunity | null {
+  const currencyIds = new Set<string>([...item.pairs.map((p) => p.currencyId), ...Object.keys(override ?? {})]);
+
+  const withDivineEq: { currencyId: string; rate: number; volume: number; divineEq: number }[] = [];
+  for (const currencyId of currencyIds) {
+    const overrideRate = override?.[currencyId];
+    const rawPair = item.pairs.find((p) => p.currencyId === currencyId);
+    const rate = overrideRate ?? rawPair?.rate;
+    if (rate === undefined || rate <= 0) continue;
+
+    const divineEq = toDivineEquivalent(currencyId, rate, rates);
+    if (divineEq === null || divineEq <= 0) continue;
+
+    withDivineEq.push({ currencyId, rate, volume: rawPair?.volume ?? 0, divineEq });
+  }
+
+  if (withDivineEq.length < 2) return null;
+
+  const cheapest = withDivineEq.reduce((a, b) => (b.divineEq < a.divineEq ? b : a));
+  const priciest = withDivineEq.reduce((a, b) => (b.divineEq > a.divineEq ? b : a));
+  if (cheapest.currencyId === priciest.currencyId) return null;
+
+  const divineProfitPerFlip = priciest.divineEq - cheapest.divineEq;
+  if (!Number.isFinite(divineProfitPerFlip) || divineProfitPerFlip <= 0) return null;
+
+  return {
+    id: item.id,
+    name: item.name,
+    image: item.image,
+    category: item.category,
+    buyCurrency: cheapest.currencyId,
+    buyRate: cheapest.rate,
+    buyDivineEquivalent: cheapest.divineEq,
+    sellCurrency: priciest.currencyId,
+    sellRate: priciest.rate,
+    sellDivineEquivalent: priciest.divineEq,
+    divineProfitPerFlip,
+    profitPercent: (divineProfitPerFlip / cheapest.divineEq) * 100,
+    volume: Math.min(cheapest.volume, priciest.volume),
+  };
+}
+
+// Builds the ranked top-20 (by divine profit) and top-5-by-volume reference
+// list from the whole pool at a given rate set. This is what re-runs whenever
+// the global ratio override changes - pure and framework-agnostic, so it runs
+// identically on the server (initial paint) and in the browser (recompute).
+export function computeFlips(pool: PoolItem[], rates: RateMap): FlipResult {
+  const opportunities: RawOpportunity[] = [];
+
+  for (const item of pool) {
+    const evaluated = evaluateItem(item, rates);
+    if (!evaluated) continue;
+    if (evaluated.volume < MIN_LIQUIDITY) continue;
+    opportunities.push(evaluated);
   }
 
   // Rank by volume (liquidity) across the whole discovered pool first, so every
