@@ -121,7 +121,7 @@ function FlipRow({
       style={{ borderLeftWidth: 5, borderLeftColor: accentColor }}
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
-        <div className="flex items-center gap-3 sm:w-52 sm:shrink-0">
+        <div className="flex items-start gap-3 sm:w-64 sm:shrink-0">
           <span
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
             style={{ backgroundColor: accentColor }}
@@ -131,7 +131,7 @@ function FlipRow({
           <button
             type="button"
             onClick={onToggleExpand}
-            className="flex min-w-0 items-center gap-2 text-left"
+            className="flex min-w-0 items-start gap-2 text-left"
             aria-expanded={expanded}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -140,10 +140,10 @@ function FlipRow({
               alt=""
               width={28}
               height={28}
-              className="shrink-0 rounded"
+              className="mt-0.5 shrink-0 rounded"
             />
             <div className="min-w-0">
-              <p className="flex items-center gap-1.5 truncate font-semibold text-zinc-900 underline decoration-dotted underline-offset-2 dark:text-zinc-50">
+              <p className="flex flex-wrap items-center gap-1.5 font-semibold text-zinc-900 underline decoration-dotted underline-offset-2 dark:text-zinc-50">
                 {flip.name}
                 {hasOverride && (
                   <span className="rounded-full bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-950 dark:text-sky-300">
@@ -151,7 +151,7 @@ function FlipRow({
                   </span>
                 )}
               </p>
-              <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{flip.category}</p>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">{flip.category}</p>
             </div>
           </button>
         </div>

@@ -52,7 +52,7 @@ export default function TrendScanner({ entries, activeSort }: { entries: TrendEn
                 className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 sm:flex-row sm:items-center sm:gap-5"
                 style={{ borderLeftWidth: 5, borderLeftColor: accentColor }}
               >
-                <div className="flex items-center gap-3 sm:w-52 sm:shrink-0">
+                <div className="flex items-start gap-3 sm:w-64 sm:shrink-0">
                   <span
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white"
                     style={{ backgroundColor: accentColor }}
@@ -60,10 +60,16 @@ export default function TrendScanner({ entries, activeSort }: { entries: TrendEn
                     {i + 1}
                   </span>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={getItemIconUrl(entry.image)} alt="" width={28} height={28} className="shrink-0 rounded" />
+                  <img
+                    src={getItemIconUrl(entry.image)}
+                    alt=""
+                    width={28}
+                    height={28}
+                    className="mt-0.5 shrink-0 rounded"
+                  />
                   <div className="min-w-0">
-                    <p className="truncate font-semibold text-zinc-900 dark:text-zinc-50">{entry.name}</p>
-                    <p className="truncate text-xs text-zinc-500 dark:text-zinc-400">{entry.category}</p>
+                    <p className="font-semibold text-zinc-900 dark:text-zinc-50">{entry.name}</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">{entry.category}</p>
                   </div>
                 </div>
 
